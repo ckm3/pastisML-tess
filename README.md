@@ -2,9 +2,9 @@
 Code to produce simulated TESS lightcurves based on PASTIS
 
 ## Dependency
-The package uses the PASTIS package (not public yet; sorry!)
+The package uses the PASTIS package
 
-The PASTIS code is available on request, and the main paper describing it is:
+The main paper describing it is:
 
 ```
 @ARTICLE{pastis,
@@ -27,3 +27,31 @@ archivePrefix = {arXiv},
 ```
     
 ## Usage
+Clone the current repo
+```
+git clone https://github.com/ckm3/pastisML-tess.git
+```
+Enter the folder
+```
+cd pastisML-tess/
+```
+Create an conda environment with the given environment.yml, and if you are going to install other packages with conda, make sure you are using conda-forge channel.
+```
+conda env create -f environment.yml
+```
+Activate the environment
+```
+conda activate pastis-env
+```
+Install pastis
+```
+cd ..
+git clone https://github.com/ckm3/pastis.git
+cd pastis
+pip install -e .
+```
+
+Also download necessary lib files [https://storage.cuikaiming.com/share/pastis-lib.tar]([https://](https://storage.cuikaiming.com/share/pastis-lib.tar)) and put them under the lib folder of pastis.
+
+The stellar sample file should contain the necessary columns listed in the main.py 
+ 
