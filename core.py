@@ -10,18 +10,19 @@ FP or planetary.
 """
 import os
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import scipy.stats as st
+import h5py
 
 # from pastis import limbdarkening as ld
 from pastis.priors import moduleprior as mp
 from pastis.MCMC import priors
 
 
-'''
+"""
 from . import parameters as pp
 from . import constants as cts
-'''
+"""
 
 import parameters as pp
 import constants as cts
@@ -35,8 +36,9 @@ class Parameters(object):
 
     def draw(self):
         """Draw all parameters."""
-        raise NotImplementedError('draw method must be implemented on a '
-                                  'sub-class basis')
+        raise NotImplementedError(
+            "draw method must be implemented on a " "sub-class basis"
+        )
 
     def to_pastis(self, mask=None):
         """
@@ -48,12 +50,17 @@ class Parameters(object):
         assert self.draw, "Parameters not drawn. Use .draw method first."
 
         if mask is None:
-            pdict = dict([[par[-1], getattr(self, par[0])] for
-                          par in self.parnames.values()])
+            pdict = dict(
+                [[par[-1], getattr(self, par[0])] for par in self.parnames.values()]
+            )
 
         else:
-            pdict = dict([[par[-1], getattr(self, par[0])[mask]] for
-                          par in self.parnames.values()])
+            pdict = dict(
+                [
+                    [par[-1], getattr(self, par[0])[mask]]
+                    for par in self.parnames.values()
+                ]
+            )
 
         return pdict
 
@@ -63,6 +70,7 @@ class StarParameters(Parameters):
 
     Only to be used by subclassing.
     """
+
     def __init__(self):
         self.draw = 0
 
@@ -82,14 +90,21 @@ class StarParameters(Parameters):
 
         NOTE: until further notice this just returns 0.
         """
-        self.ebmv = np.zeros(len(self))
+        self.Av = np.zeros(len(self))
         return
 
 
 class TargetStarParameters(StarParameters):
     """class for paeramters of the observed (TIC) target star."""
 
-    def __init__(self, params, pbands=['Johnson-R', ], **kwargs):
+    def __init__(
+        self,
+        params,
+        pbands=[
+            "Johnson-R",
+        ],
+        **kwargs
+    ):
         """
         Include parameters from TIC.
 
@@ -109,22 +124,31 @@ class TargetStarParameters(StarParameters):
         # stellar tracks.
         # self.densflag = params[3]
 
-# =============================================================================
-#         # Initialise LDC table (if neeeded)
-#         if not hasattr(ld, 'LDCs'):
-#             ld.initialize_limbdarkening(pbands, **kwargs)
-#             self.inited_pbands = pbands
-#         else:
-#             self.inited_pbands = list(ld.LDCs[0].keys())
-# =============================================================================
+        # =============================================================================
+        #         # Initialise LDC table (if neeeded)
+        #         if not hasattr(ld, 'LDCs'):
+        #             ld.initialize_limbdarkening(pbands, **kwargs)
+        #             self.inited_pbands = pbands
+        #         else:
+        #             self.inited_pbands = list(ld.LDCs[0].keys())
+        # =============================================================================
 
-        self.parnames = {'Effective Temperature': ['teff', 'K', 'teff'],
-                         'Surface gravity': ['logg', 'cgs [log]', 'logg'],
-                         'Metallicity': ['feh', '', 'z'],
-                         'Distance': ['distance', 'pc', 'dist'],
-                         'Albedo': ['albedo', '', 'albedo'],
-                         'Redenning': ['ebmv', '', 'ebmv'],
-                         'Gravity Darkening': ['B', '', 'B']}
+        self.parnames = {
+            "Radius": ["radius", "Solar radius", "R"],
+            "Tmag": ["Tmag", "", "Tmag"],
+            "Av": ["Av", "", "Av"],
+            "Mass": ["mass", "Solar mass", "mact"],
+            "Effective Temperature": ["teff", "K", "teff"],
+            "Surface gravity": ["logg", "cgs [log]", "logg"],
+            "Metallicity": ["feh", "", "z"],
+            "Distance": ["distance", "pc", "dist"],
+            "Albedo": ["albedo", "", "albedo"],
+            # "Redenning": ["ebmv", "", "ebmv"],
+            "Gaia Gmag": ["Gmag", "", "Gmag"],
+            "Gaia BP-RP": ["BPmRP", "", "BPmRP"],
+            "Doppler beaming factors": ["B", "", "B"],
+            "TIC ID": ["ticid", "", "ticid"],
+        }
 
         self.drawn = 0
 
@@ -133,19 +157,44 @@ class TargetStarParameters(StarParameters):
     @property
     def params(self):
         """Property to return TIC parameters."""
-        return dict([['Teff', self.teff], ['logg', self.logg],
-                     ['Fe/H', self.feh]])
+        # return dict([["Teff", self.teff], ["logg", self.logg], ["Fe/H", self.feh]])
+        return dict(
+            [
+                ["Radius", self.radius],
+                ["Tmag", self.Tmag],
+                ["Av", self.Av],
+                ["Mass", self.mass],
+                ["Teff", self.teff],
+                ["logg", self.logg],
+                ["[M/H]", self.feh],
+                # ["E(B-V)", self.ebmv],
+                ["Gaia Gmag", self.Gmag],
+                ["Gaia BP-RP", self.BPmRP],
+                ["B", self.B],
+                ["Distance", self.distance],
+                ["TIC ID", self.ticid],
+            ]
+        )
 
     @params.setter
     def params(self, params):
         """Property to set TIC parameters."""
-        self.teff = params[0]
-        self.logg = params[1]
-        self.feh = params[2]
+        self.radius = params[0]
+        self.Tmag = params[1]
+        self.Av = params[2]
+        self.mass = params[3]
+        self.teff = params[4]
+        self.logg = params[5]
+        self.feh = params[6]
+        # self.ebmv = params[7]
+        self.Gmag = params[7]
+        self.BPmRP = params[8]
+        self.B = params[9]
+        self.ticid = params[10]
         try:
-            self.distance = params[3]
+            self.distance = params[11]
         except IndexError:
-            self.distance = params[0]*0.0 + 10.0
+            self.distance = params[0] * 0.0 + 10.0
 
         self._param_len = params.shape[1]
 
@@ -157,8 +206,8 @@ class TargetStarParameters(StarParameters):
         """Draw all parameters."""
         self.draw_albedo()
         # self.draw_ldc()
-        self.draw_redenning()
-        self.draw_gravitydarkenning()
+        # self.draw_redenning()
+        # self.draw_gravitydarkenning()
 
         self.drawn = 1
         return
@@ -168,41 +217,42 @@ class TargetStarParameters(StarParameters):
         # Prepare first set of parameters
         pdict = super().to_pastis(*args)
 
-# =============================================================================
-#         # THIS WAS BEFORE, WHEN LDC WERE DRAWN HERE.
-#         # But this is useless, as PASTIS will draw them again!
-#         # check_pbands and draw_ldc are therefore also commented
-#
-#         # TODO Fix crash in object builder for LDC dicts.
-#         # Make LD coefficients dictionary [not used; for now keep
-#         # coefficient from last band iterated]
-#         uadict = {}
-#         ubdict = {}
-#         for band in self.inited_pbands:
-#             if hasattr(self, 'LDC_{}'.format(band)):
-#                 ldc = getattr(self, 'LDC_{}'.format(band))
-#
-#                 uadict[band] = ldc[:, 0]
-#                 ubdict[band] = ldc[:, 1]
-#
-#         # pdict.update({'ua': uadict, 'ub': ubdict, 'B': self.feh * 0.0})
-#         pdict.update({'ua': ldc[:, 0], 'ub': ldc[:, 1],
-#                       'B': self.feh * 0.0})
-#
-# =============================================================================
-# =============================================================================
-#         pdict = {'teff': self.teff,
-#                  'logg': self.logg,
-#                  'z': self.feh,
-#                  'albedo': self.albedo,
-#                  'ua': uadict,
-#                  'ub': ubdict,
-#                  # fix beaming effect to zero
-#                  'B': self.feh * 0.0
-#                  }
-# =============================================================================
+        # =============================================================================
+        #         # THIS WAS BEFORE, WHEN LDC WERE DRAWN HERE.
+        #         # But this is useless, as PASTIS will draw them again!
+        #         # check_pbands and draw_ldc are therefore also commented
+        #
+        #         # TODO Fix crash in object builder for LDC dicts.
+        #         # Make LD coefficients dictionary [not used; for now keep
+        #         # coefficient from last band iterated]
+        #         uadict = {}
+        #         ubdict = {}
+        #         for band in self.inited_pbands:
+        #             if hasattr(self, 'LDC_{}'.format(band)):
+        #                 ldc = getattr(self, 'LDC_{}'.format(band))
+        #
+        #                 uadict[band] = ldc[:, 0]
+        #                 ubdict[band] = ldc[:, 1]
+        #
+        #         # pdict.update({'ua': uadict, 'ub': ubdict, 'B': self.feh * 0.0})
+        #         pdict.update({'ua': ldc[:, 0], 'ub': ldc[:, 1],
+        #                       'B': self.feh * 0.0})
+        #
+        # =============================================================================
+        # =============================================================================
+        #         pdict = {'teff': self.teff,
+        #                  'logg': self.logg,
+        #                  'z': self.feh,
+        #                  'albedo': self.albedo,
+        #                  'ua': uadict,
+        #                  'ub': ubdict,
+        #                  # fix beaming effect to zero
+        #                  'B': self.feh * 0.0
+        #                  }
+        # =============================================================================
 
         return pdict
+
 
 # =============================================================================
 #     def check_pbands(self, pbands):
@@ -236,15 +286,16 @@ class TargetStarParameters(StarParameters):
 class PlanetParameters(Parameters):
     """class of realistic parameters for the planet scenario."""
 
-    def __init__(self, 
-                 minradius=None,
-                 max_period=pp.MAX_PERIOD, 
-                 method='hsu',
-                 table_path=os.path.join(pp.TABLE_DIR, 'Hsu',
-                                               'table2.dat'),
-                 rates_column=4, 
-                 interbindist='flat', 
-                 **kwargs):
+    def __init__(
+        self,
+        minradius=None,
+        max_period=pp.MAX_PERIOD,
+        method="hsu",
+        table_path=os.path.join(pp.TABLE_DIR, "Hsu", "planets_sample_le16d.h5"),
+        rates_column=4,
+        interbindist="flat",
+        **kwargs
+    ):
         """
         If method is 'hsu', prepare rates from Hsu+2019 table 2.
 
@@ -256,7 +307,7 @@ class PlanetParameters(Parameters):
         no limit is included.
 
         :params str method: whether to use "Hsu table" ('hsu') or uniform distributions ('uniform').
-        
+
         :param int rates_column: chooses which rate to use. Options 4 or 6
 
         :param str interbindist: defines method to sample within bin. Options
@@ -264,59 +315,62 @@ class PlanetParameters(Parameters):
 
         The remaning parameters are passed to the draw functions.
         """
-        validmethod = ['hsu', 'uniform']
-        
-        assert method in validmethod, \
-            ("method must be \'{}\'".format('\' or \''.join(validmethod)))
-        self.method = method
-        
-        validdist = ['flat', 'logflat']
+        validmethod = ["hsu", "uniform"]
 
-        assert interbindist in validdist, \
-            ("interbindist must be \'{}\'".format('\' or \''.join(validdist)))
+        assert method in validmethod, "method must be '{}'".format(
+            "' or '".join(validmethod)
+        )
+        self.method = method
+
+        validdist = ["flat", "logflat"]
+
+        assert interbindist in validdist, "interbindist must be '{}'".format(
+            "' or '".join(validdist)
+        )
         self.sampledist = interbindist
 
-        dd = pd.read_csv(table_path, delim_whitespace=True, header=None,
-                         index_col=None)
+        # dd = pd.read_csv(table_path, delim_whitespace=True, header=None, index_col=None)
+        with h5py.File(table_path, "r") as f:
+            data = f["dataset"]
+            self.pl_sample = np.array(data)
 
-        self.rates_column = rates_column
+        # self.rates_column = rates_column
 
         # Remove upper limits (always use column 4, because 9 may be NaN)
-        self.occ_rate_table = dd.loc[dd.loc[:, 4] != "<"]
+        # self.occ_rate_table = dd.loc[dd.loc[:, 4] != "<"]
 
         # Get occurrence rate in numpy format to use as weights
-        self.rates_orig = self.occ_rate_table.loc[:, self.rates_column].\
-            to_numpy().astype('float')
+        # self.rates_orig = (
+        #     self.occ_rate_table.loc[:, self.rates_column].to_numpy().astype("float")
+        # )
 
         if minradius is not None:
-            min_rad_cond = self.occ_rate_table.loc[:, 2] >= minradius
-        else:
-            min_rad_cond = np.full_like(self.occ_rate_table.loc[:, 2], True)
+            self.pl_sample = self.pl_sample[self.pl_sample[:, 1] >= minradius]
 
         if max_period is not None:
-            max_per_cond = self.occ_rate_table.loc[:, 1] <= max_period
-        else:
-            max_per_cond = np.full_like(self.occ_rate_table.loc[:, 1], True)
+            self.pl_sample = self.pl_sample[self.pl_sample[:, 0] <= max_period]
 
         # Filter rates
         # TODO allow filtering inside bin; up to now, only full bins are kept
-        self.rates = np.where(min_rad_cond * max_per_cond, self.rates_orig, 0)
+        # self.rates = np.where(min_rad_cond * max_per_cond, self.rates_orig, 0)
 
-        # Compute weights
-        self.w = self.rates/self.rates.sum()
+        # # Compute weights
+        # self.w = self.rates / self.rates.sum()
 
         # Parameter names
         # Each entry contains name of attribute, units
         # and name of parameter in pastis
 
-        self.parnames = {'orb_period': ['period', 'days', 'P'],
-                         'orb_ecc': ['ecc', '', 'ecc'],
-                         'orb_omega': ['omega_rad', 'rad', 'omega'],
-                         'orb_incl': ['incl_rad', 'rad', 'incl'],
-                         'orb_phtr': ['ph_tr', '', 'T0'],
-                         'pla_radius_rjup': ['radius_rjup', 'jupiter', 'Rp'],
-                         'pla_mass_mjup': ['mass_mjup', 'jupiter', 'Mp'],
-                         'pla_albedo': ['albedo', 'albedo']}
+        self.parnames = {
+            "orb_period": ["period", "days", "P"],
+            "orb_ecc": ["ecc", "", "ecc"],
+            "orb_omega": ["omega_rad", "rad", "omega"],
+            "orb_incl": ["incl_rad", "rad", "incl"],
+            "orb_phtr": ["ph_tr", "", "T0"],
+            "pla_radius_rjup": ["radius_rjup", "jupiter", "Rp"],
+            "pla_mass_mjup": ["mass_mjup", "jupiter", "Mp"],
+            "pla_albedo": ["albedo", "albedo"],
+        }
 
         for val in self.parnames.values():
             setattr(self, val[0], None)
@@ -325,8 +379,8 @@ class PlanetParameters(Parameters):
 
     def draw(self, size=1, **kwargs):
         """Draw all parameters at once (convenience function)."""
-        self.draw_orbit(size, **kwargs)
         self.draw_period_radius(size, **kwargs)
+        self.draw_orbit(size, **kwargs)
         self.draw_mass(size)
         self.draw_albedo(size)
 
@@ -342,49 +396,58 @@ class PlanetParameters(Parameters):
         pdict = super().to_pastis(*args)
 
         # pass omega and incl to degrees, as required in pastis
-        for angle in ['omega', 'incl']:
-            pdict[angle] *= 180/np.pi
+        for angle in ["omega", "incl"]:
+            pdict[angle] *= 180 / np.pi
 
         return pdict
 
     def draw_period_radius(self, size=1, **kwargs):
         """Draw size parameters following the planet occurrence rates."""
-        
-        if self.method == 'hsu':
-            
+
+        if self.method == "hsu":
+
             # Randomly draw a line with weights self.w
-            i = np.random.choice(len(self.w), size=size, p=self.w)
+            # i = np.random.choice(len(self.w), size=size, p=self.w)
 
-            A = self.occ_rate_table.iloc[i, [0, 1, 2, 3]].to_numpy()
+            # A = self.occ_rate_table.iloc[i, [0, 1, 2, 3]].to_numpy()
 
-            deltap = A[:, 1] - A[:, 0]
-            deltar = A[:, 3] - A[:, 2]
-            
-            pmin = A[:, 0]
-            rmin = A[:, 2]
+            # deltap = A[:, 1] - A[:, 0]
+            # deltar = A[:, 3] - A[:, 2]
 
-        elif self.method == 'uniform':
-            
+            # pmin = A[:, 0]
+            # rmin = A[:, 2]
+            p, r = self.pl_sample[
+                np.random.randint(0, self.pl_sample.shape[0], size=size)
+            ].T
+
+        elif self.method == "uniform":
+
+            p, r = st.loguniform.rvs(
+                np.round(self.pl_sample.min(axis=0), decimals=1),
+                np.round(self.pl_sample.max(axis=0), decimals=1),
+                size=(size, 2),
+            ).T
+
             # Get all columns not filtered in __init__
-            A = self.occ_rate_table.loc[self.w > 0, [0, 1, 2, 3]].to_numpy()
-                        
-            # Rango en períodos y radios
-            deltap = A[:, 1].max() - A[:, 0].min()
-            deltar = A[:, 3].max() - A[:, 2].min()
-            
-            pmin = A[:, 0].min()
-            rmin = A[:, 2].min()      
-            
-        # Sample randomly within bin
-        u = np.random.rand(size, 2)
+        #     A = self.occ_rate_table.loc[self.w > 0, [0, 1, 2, 3]].to_numpy()
 
-        if self.sampledist == 'flat':
-            p = u[:, 0] * deltap + pmin
-            r = u[:, 1] * deltar + rmin
+        #     # Range in periods and radii
+        #     deltap = A[:, 1].max() - A[:, 0].min()
+        #     deltar = A[:, 3].max() - A[:, 2].min()
 
-        elif self.sampledist == 'logflat':
-            # TDOO draw log-flat
-            pass
+        #     pmin = A[:, 0].min()
+        #     rmin = A[:, 2].min()
+
+        # # Sample randomly within bin
+        # u = np.random.rand(size, 2)
+
+        # if self.sampledist == "flat":
+        #     p = u[:, 0] * deltap + pmin
+        #     r = u[:, 1] * deltar + rmin
+
+        # elif self.sampledist == "logflat":
+        #     # TDOO draw log-flat
+        #     pass
 
         self.period = p
         self.radius_rearth = r
@@ -397,11 +460,36 @@ class PlanetParameters(Parameters):
         try:
             r = self.radius_rearth
         except AttributeError:
-            raise AttributeError('Planet radius not defined; '
-                                 'run draw_period_radius first')
+            raise AttributeError(
+                "Planet radius not defined; " "run draw_period_radius first"
+            )
 
         # TODO realistic mass-radius relation
-        self.mass_mearth = r*0.0 + 1.0
+        def model_mass_from_r(r):
+            threshold1 = np.random.normal(4.37, 0.72)
+            threshold2 = np.random.normal(127, 7)
+            a = np.random.normal(1.02, 0.03)
+            alpha = np.random.normal(0.27, 0.04)
+            b = np.random.normal(0.56, 0.03)
+            beta = np.random.normal(0.67, 0.05)
+            c = np.random.normal(18.6, 6.7)
+            gamma = np.random.normal(-0.06, 0.07)
+            
+            if r <= a * threshold1 ** alpha:
+                m = (r/a) ** (1 / alpha)
+            elif a * threshold1 ** alpha < r <= b * threshold2 ** beta:
+                m = (r/b) ** (1 / beta)
+            else:
+                m = (r/c) ** (1 / gamma)
+            return m
+        
+        self.mass_mearth = []
+        for r in self.radius_rearth:
+            m = model_mass_from_r(r)
+            while m > 13 * cts.GMjup / cts.GMearth or m < 0.1:
+                m = model_mass_from_r(r)
+            self.mass_mearth.append(m)
+        self.mass_mearth = np.array(self.mass_mearth)
         self.mass_mjup = self.mass_mearth * cts.GMearth / cts.GMjup
 
         return
@@ -414,11 +502,11 @@ class PlanetParameters(Parameters):
     def draw_orbit(self, size=1, **kwargs):
         """Draw orbital parameters, except period."""
 
-        thetamin_deg = kwargs.pop('thetamin_deg', pp.THETAMIN_DEG)
-        eccentric = kwargs.pop('eccentric', True)
+        thetamin_deg = kwargs.pop("thetamin_deg", pp.THETAMIN_DEG)
+        eccentric = kwargs.pop("eccentric", True)
 
         # Random inclination between thetamin and 90.0 deg
-        k = np.cos(thetamin_deg * np.pi/180.0)
+        k = np.cos(thetamin_deg * np.pi / 180.0)
         self.incl_rad = np.arccos(k * (1 - np.random.rand(size)))
 
         # transit phase
@@ -426,14 +514,15 @@ class PlanetParameters(Parameters):
 
         # Eccentricity
         if eccentric:
-            ecc_prior = priors.TruncatedUNormalPrior(0., 0.3, 0., 1.)
-            self.ecc = ecc_prior.rvs(size)
+            # ecc_prior = priors.TruncatedUNormalPrior(0., 0.3, 0., 1.)
+            # self.ecc = ecc_prior.rvs(size)
+            self.ecc = priors.sample_e_from_p(self.period)
             # self.ecc = np.abs(np.random.randn(size) * 0.3)
             self.omega_rad = np.random.rand(size) * 2 * np.pi
 
         else:
-            self.ecc = np.array([0]*size)
-            self.omega_rad = np.array([0]*size)
+            self.ecc = np.array([0] * size)
+            self.omega_rad = np.array([0] * size)
 
         # For future convenience, define omega in deg.
         self.omega_deg = self.omega_rad * 180.0 / np.pi
@@ -458,12 +547,13 @@ class BlendedStarParameters(StarParameters):
         self.foreground = foreground
         self.minmass = minmass
 
-        self.parnames = {'Mass': ['mass', 'Solar mass', 'minit'],
-                         'Age': ['logage', 'Gyr [log]', 'logage'],
-                         'Metallicity': ['feh', '', 'z'],
-                         'Albedo': ['albedo', '', 'albedo'],
-                         'Redenning': ['ebmv', '', 'ebmv']
-                         }
+        self.parnames = {
+            "Mass": ["mass", "Solar mass", "minit"],
+            "Age": ["logage", "Gyr [log]", "logage"],
+            "Metallicity": ["feh", "", "z"],
+            "Albedo": ["albedo", "", "albedo"],
+            "Redenning": ["Av", "", "Av"],
+        }
         self.drawn = 0
 
         return
@@ -474,8 +564,8 @@ class BlendedStarParameters(StarParameters):
 
     def draw(self):
         """Draw all parameters. Convenience function."""
-        for d in ['mass', 'logage', 'feh', 'distance', 'albedo', 'redenning']:
-            to_run = getattr(self, 'draw_{}'.format(d))
+        for d in ["mass", "logage", "feh", "distance", "albedo", "redenning"]:
+            to_run = getattr(self, "draw_{}".format(d))
             # Run draw
             to_run()
 
@@ -494,25 +584,25 @@ class BlendedStarParameters(StarParameters):
         beta = 3.0
         m0 = 1.0
 
-        amax = m0**(1 - alpha) / (1 - alpha)
-        amin = self.minmass**(1 - alpha) / (1 - alpha)
+        amax = m0 ** (1 - alpha) / (1 - alpha)
+        amin = self.minmass ** (1 - alpha) / (1 - alpha)
 
         # bmax = self.maxmass**(1 - beta) / (1 - beta)
-        bmin = m0**(1 - beta) / (1 - beta)
+        bmin = m0 ** (1 - beta) / (1 - beta)
 
         # Integral over whole range
         # k = amax - amin + bmax - bmin
         k = amax - amin - bmin
 
         # Limit quantiles
-        q0 = (amax - amin)/k
+        q0 = (amax - amin) / k
 
         # Random quantile draws
         q = np.random.rand(len(self))
 
         # Inverse CDF in the two regimes
-        xalpha = ((q*k + amin) * (1 - alpha)) ** (1 / (1 - alpha))
-        xbeta = ((q*k - (amax - amin) + bmin) * (1 - beta)) ** (1 / (1 - beta))
+        xalpha = ((q * k + amin) * (1 - alpha)) ** (1 / (1 - alpha))
+        xbeta = ((q * k - (amax - amin) + bmin) * (1 - beta)) ** (1 / (1 - beta))
 
         # Assign depending on value of q
         self.mass = np.where(q < q0, xalpha, xbeta)
@@ -521,7 +611,7 @@ class BlendedStarParameters(StarParameters):
 
     def draw_logage(self):
         """Draw logarithm (base 10) of age in Gyr."""
-        self.logage = np.random.rand(len(self))*4 + 6
+        self.logage = np.random.rand(len(self)) * 4 + 6
         return
 
     def draw_feh(self):
@@ -531,8 +621,9 @@ class BlendedStarParameters(StarParameters):
 
     def draw_distance(self):
         """Draw distance of blended star (with respecto to target star)."""
-        raise NotImplementedError('draw_distance method must be implented '
-                                  'by subclass')
+        raise NotImplementedError(
+            "draw_distance method must be implented " "by subclass"
+        )
 
 
 # TODO Clean up; most methods are identically to BlendedStarParameters
@@ -556,14 +647,18 @@ class BackgroundStarParameters(BlendedStarParameters):
 
         # Add information related to distance behind target star
         self.maxdist = maxdist
-        self.parnames.update({'Distance': ['distance', 'pc', 'dist'],})
+        self.parnames.update(
+            {
+                "Distance": ["distance", "pc", "dist"],
+            }
+        )
 
         return
 
     def draw(self):
         """Draw all parameters. Convenience function."""
-        for d in ['mass', 'logage', 'feh', 'distance', 'albedo', 'redenning']:
-            to_run = getattr(self, 'draw_{}'.format(d))
+        for d in ["mass", "logage", "feh", "distance", "albedo", "redenning"]:
+            to_run = getattr(self, "draw_{}".format(d))
             # Run draw
             to_run()
 
@@ -582,25 +677,25 @@ class BackgroundStarParameters(BlendedStarParameters):
         beta = 3.0
         m0 = 1.0
 
-        amax = m0**(1 - alpha) / (1 - alpha)
-        amin = self.minmass**(1 - alpha) / (1 - alpha)
+        amax = m0 ** (1 - alpha) / (1 - alpha)
+        amin = self.minmass ** (1 - alpha) / (1 - alpha)
 
         # bmax = self.maxmass**(1 - beta) / (1 - beta)
-        bmin = m0**(1 - beta) / (1 - beta)
+        bmin = m0 ** (1 - beta) / (1 - beta)
 
         # Integral over whole range
         # k = amax - amin + bmax - bmin
         k = amax - amin - bmin
 
         # Limit quantiles
-        q0 = (amax - amin)/k
+        q0 = (amax - amin) / k
 
         # Random quantile draws
         q = np.random.rand(len(self))
 
         # Inverse CDF in the two regimes
-        xalpha = ((q*k + amin) * (1 - alpha)) ** (1 / (1 - alpha))
-        xbeta = ((q*k - (amax - amin) + bmin) * (1 - beta)) ** (1 / (1 - beta))
+        xalpha = ((q * k + amin) * (1 - alpha)) ** (1 / (1 - alpha))
+        xbeta = ((q * k - (amax - amin) + bmin) * (1 - beta)) ** (1 / (1 - beta))
 
         # Assign depending on value of q
         self.mass = np.where(q < q0, xalpha, xbeta)
@@ -609,7 +704,7 @@ class BackgroundStarParameters(BlendedStarParameters):
 
     def draw_logage(self):
         """Draw logarithm (base 10) of age in Gyr."""
-        self.logage = np.random.rand(len(self))*4 + 6
+        self.logage = np.random.rand(len(self)) * 4 + 6
         return
 
     def draw_feh(self, size=1):
@@ -620,7 +715,7 @@ class BackgroundStarParameters(BlendedStarParameters):
     def draw_distance(self, size=1):
         """Draw distance of background star (from target star)."""
         # TODO consider foreground stars.
-        self.distance = np.random.rand(len(self))**(1./3.) * self.maxdist
+        self.distance = np.random.rand(len(self)) ** (1.0 / 3.0) * self.maxdist
         # Add distance to foreground star
         self.distance += self.foreground.distance
         return
@@ -631,8 +726,7 @@ class PrimaryBkgParameters(BackgroundStarParameters):
 
     def __init__(self, foreground, maxdist=1000, minmass=0.05):
 
-        super().__init__(foreground, maxist=maxdist,
-                         minmass=minmass)
+        super().__init__(foreground, maxist=maxdist, minmass=minmass)
         return
 
 
@@ -649,7 +743,7 @@ class SecondaryBkgParameters(BlendedStarParameters):
 
         return
 
-    def draw_q(self):
+    def draw_q(self, orbit_obj):
         """
         Draw mass ratio.
 
@@ -657,28 +751,29 @@ class SecondaryBkgParameters(BlendedStarParameters):
 
         See moduleprior.q_def for more details.
         """
-        self.q = binary_mass_ratio(len(self))
+        self.q = binary_mass_ratio(self.primary.mass, orbit_obj.period, len(self))
         return
 
-    def draw_mass(self):
+    def draw_mass(self, orbit_obj):
         """Draw mass based on mass ratio and primary mass."""
         # Draw q
-        if not hasattr(self, 'q'):
-            self.draw_q()
+        if not hasattr(self, "q"):
+            self.draw_q(orbit_obj)
 
         self.mass = self.primary.mass * self.q
         return
 
-    def draw(self):
+    def draw(self, orbit_obj):
         """Draw all parameters. Convenience function."""
-        for d in ['mass', 'albedo', 'redenning']:
-            to_run = getattr(self, 'draw_{}'.format(d))
+        for d in ["albedo", "redenning"]:
+            to_run = getattr(self, "draw_{}".format(d))
             # Run draw
             to_run()
+        self.draw_mass(orbit_obj)
 
         # Copy specific attributes from primary star
         # This is redundant as PASTIS takes care of this anyway
-        for inherited_par in ['logage', 'feh']:
+        for inherited_par in ["logage", "feh"]:
             setattr(self, inherited_par, getattr(self.primary, inherited_par))
 
         # Distance from primary
@@ -698,9 +793,10 @@ class SecondaryStarParameters(StarParameters):
 
         self.primary = primarystar
 
-        self.parnames = {'q': ['q', '', 'q'],
-                         'Albedo': ['albedo', '', 'albedo2'],
-                         }
+        self.parnames = {
+            "q": ["q", "", "q"],
+            "Albedo": ["albedo", "", "albedo2"],
+        }
         self.drawn = 0
 
         return
@@ -709,7 +805,7 @@ class SecondaryStarParameters(StarParameters):
         """Len method."""
         return len(self.primary)
 
-    def draw_q(self):
+    def draw_q(self, orbit_obj):
         """
         Draw mass ratio.
 
@@ -717,16 +813,17 @@ class SecondaryStarParameters(StarParameters):
 
         See moduleprior.q_def for more details.
         """
-        self.q =binary_mass_ratio(len(self))
+        self.q = binary_mass_ratio(self.primary.mass, orbit_obj.period, len(self))
         return
 
-
-    def draw(self):
+    def draw(self, orbit_obj):
         """Draw all parameters. Convenience function."""
-        for d in ['q', 'albedo']:
-            to_run = getattr(self, 'draw_{}'.format(d))
-            # Run draw
-            to_run()
+        # for d in ["q", "albedo"]:
+        #     to_run = getattr(self, "draw_{}".format(d))
+        #     # Run draw
+        #     to_run(orbit_obj)
+        self.draw_q(orbit_obj)
+        self.draw_albedo()
 
         # Copy specific attributes from primary star
         # This is redundant as PASTIS takes care of this anyway
@@ -754,13 +851,14 @@ class BoundPrimaryParameters(StarParameters):
         self.foreground = foreground
         self.minmass = minmass
 
-        self.parnames = {'Mass': ['mass', 'Solar mass', 'minit'],
-                         'Age': ['logage', 'Gyr [log]', 'logage'],
-                         'Metallicity': ['feh', '', 'z'],
-                         'Distance': ['distance', 'pc', 'dist'],
-                         'Albedo': ['albedo', '', 'albedo'],
-                         'Redenning': ['ebmv', '', 'ebmv']
-                         }
+        self.parnames = {
+            "Mass": ["mass", "Solar mass", "minit"],
+            "Age": ["logage", "Gyr [log]", "logage"],
+            "Metallicity": ["feh", "", "z"],
+            "Distance": ["distance", "pc", "dist"],
+            "Albedo": ["albedo", "", "albedo"],
+            "Redenning": ["Av", "", "Av"],
+        }
         self.drawn = 0
 
         return
@@ -771,8 +869,8 @@ class BoundPrimaryParameters(StarParameters):
 
     def draw(self):
         """Draw all parameters. Convenience function."""
-        for d in ['mass', 'feh', 'logage', 'distance', 'albedo', 'redenning']:
-            to_run = getattr(self, 'draw_{}'.format(d))
+        for d in ["mass", "feh", "logage", "distance", "albedo", "redenning"]:
+            to_run = getattr(self, "draw_{}".format(d))
             # Run draw
             to_run()
 
@@ -790,32 +888,32 @@ class BoundPrimaryParameters(StarParameters):
 
         Use IMF from Robin+2003
         """
-        #TODO change to something more clever (tokovinin or Raghavan)
+        # TODO change to something more clever (tokovinin or Raghavan)
 
         # Parameters from Robin+2003
         alpha = 1.6
         beta = 3.0
         m0 = 1.0
 
-        amax = m0**(1 - alpha) / (1 - alpha)
-        amin = self.minmass**(1 - alpha) / (1 - alpha)
+        amax = m0 ** (1 - alpha) / (1 - alpha)
+        amin = self.minmass ** (1 - alpha) / (1 - alpha)
 
         # bmax = self.maxmass**(1 - beta) / (1 - beta)
-        bmin = m0**(1 - beta) / (1 - beta)
+        bmin = m0 ** (1 - beta) / (1 - beta)
 
         # Integral over whole range
         # k = amax - amin + bmax - bmin
         k = amax - amin - bmin
 
         # Limit quantiles
-        q0 = (amax - amin)/k
+        q0 = (amax - amin) / k
 
         # Random quantile draws
         q = np.random.rand(len(self))
 
         # Inverse CDF in the two regimes
-        xalpha = ((q*k + amin) * (1 - alpha)) ** (1 / (1 - alpha))
-        xbeta = ((q*k - (amax - amin) + bmin) * (1 - beta)) ** (1 / (1 - beta))
+        xalpha = ((q * k + amin) * (1 - alpha)) ** (1 / (1 - alpha))
+        xbeta = ((q * k - (amax - amin) + bmin) * (1 - beta)) ** (1 / (1 - beta))
 
         # Assign depending on value of q
         self.mass = np.where(q < q0, xalpha, xbeta)
@@ -834,7 +932,12 @@ class BoundPrimaryParameters(StarParameters):
         except AttributeError:
             # It does not really matter what age we assign at this point
             # PASTIS will correct this later
-            self.logage = np.array([4,]*len(self))
+            self.logage = np.array(
+                [
+                    4,
+                ]
+                * len(self)
+            )
         return
 
     def draw_distance(self):
@@ -846,24 +949,26 @@ class BoundPrimaryParameters(StarParameters):
 class OrbitParameters(Parameters):
     """Class of orbital parameters (except periods)."""
 
-    def __init__(self, orbittype='planet', **kwargs):
+    def __init__(self, orbittype="planet", **kwargs):
 
-        max_period = kwargs.pop('max_period', pp.MAX_PERIOD)
+        max_period = kwargs.pop("max_period", pp.MAX_PERIOD)
 
-        valid_types = ['planet', 'binary', 'triple']
+        valid_types = ["planet", "binary", "triple"]
 
-        assert orbittype in valid_types, \
-            ("orbittype must be \'{}\'".format('\' or \''.join(valid_types)))
+        assert orbittype in valid_types, "orbittype must be '{}'".format(
+            "' or '".join(valid_types)
+        )
 
         self.type = orbittype
         self.max_period = max_period
 
-        self.parnames = {'orb_ecc': ['ecc', '', 'ecc'],
-                         'orb_omega': ['omega_rad', 'rad', 'omega'],
-                         'orb_incl': ['incl_rad', 'rad', 'incl'],
-                         'orb_phtr': ['ph_tr', '', 'T0'],
-                         'orb_period': ['period', 'P'],
-                         }
+        self.parnames = {
+            "orb_ecc": ["ecc", "", "ecc"],
+            "orb_omega": ["omega_rad", "rad", "omega"],
+            "orb_incl": ["incl_rad", "rad", "incl"],
+            "orb_phtr": ["ph_tr", "", "T0"],
+            "orb_period": ["period", "P"],
+        }
         return
 
     def draw(self, size, **kwargs):
@@ -874,26 +979,27 @@ class OrbitParameters(Parameters):
         orbit.
         """
 
-        thetamin = kwargs.pop('thetamin_deg', pp.THETAMIN_DEG)
+        thetamin = kwargs.pop("thetamin_deg", pp.THETAMIN_DEG)
 
-        if self.type == 'planet':
-            #TODO this is not working!
+        if self.type == "planet":
+            # TODO this is not working!
             self.draw_orbit(size, thetamin_deg=thetamin)
 
-        elif self.type == 'binary':
+        elif self.type == "binary":
 
             if self.max_period is None:
                 self.log_period = np.random.randn(size) * 2.28 + 5.03
             else:
                 a_ = -np.inf
-                b_ = (np.log(self.max_period) - 5.03)/2.28
-                self.log_period = st.truncnorm.rvs(a=a_, b=b_,
-                                                   loc=5.03, scale=2.28, size=size)
+                b_ = (np.log(self.max_period) - 5.03) / 2.28
+                self.log_period = st.truncnorm.rvs(
+                    a=a_, b=b_, loc=5.03, scale=2.28, size=size
+                )
             self.period = np.exp(self.log_period)
 
             self.draw_angles_phase(size, thetamin_deg=thetamin)
 
-        elif self.type == 'triple':
+        elif self.type == "triple":
             # Very long period, does not really affect as long
             # as much longer than shorter period in triple
             self.period = np.full(size, 10000.0)
@@ -902,7 +1008,7 @@ class OrbitParameters(Parameters):
             self.draw_angles_phase(size, thetamin_deg=0.0)
 
         else:
-            raise ValueError('Unknown object type')
+            raise ValueError("Unknown object type")
         return
 
     def to_pastis(self, *args):
@@ -915,15 +1021,15 @@ class OrbitParameters(Parameters):
         pdict = super().to_pastis(*args)
 
         # pass omega and incl to degrees, as required in pastis
-        for angle in ['omega', 'incl']:
-            pdict[angle] *= 180/np.pi
+        for angle in ["omega", "incl"]:
+            pdict[angle] *= 180 / np.pi
 
         return pdict
 
     def draw_angles_phase(self, size=1, thetamin_deg=60.0, eccentric=True):
         """Draw orbital angles and phase."""
         # Random inclination between thetamin and 90.0 deg
-        k = np.cos(thetamin_deg * np.pi/180.0)
+        k = np.cos(thetamin_deg * np.pi / 180.0)
         self.incl_rad = np.arccos(k * (1 - np.random.rand(size)))
 
         # transit phase
@@ -931,13 +1037,14 @@ class OrbitParameters(Parameters):
 
         # Eccentricity
         if eccentric:
-            ecc_prior = priors.TruncatedUNormalPrior(0., 0.3, 0., 1.)
-            self.ecc = ecc_prior.rvs(size)
+            # ecc_prior = priors.TruncatedUNormalPrior(0.0, 0.3, 0.0, 1.0)
+            # self.ecc = ecc_prior.rvs(size)
+            self.ecc = priors.sample_e_from_p(self.period)
             self.omega_rad = np.random.rand(size) * 2 * np.pi
 
         else:
-            self.ecc = np.array([0]*size)
-            self.omega_rad = np.array([0]*size)
+            self.ecc = np.array([0] * size)
+            self.omega_rad = np.array([0] * size)
 
         # For future convenience, define omega in deg.
         self.omega_deg = self.omega_rad * 180.0 / np.pi
@@ -947,17 +1054,17 @@ class OrbitParameters(Parameters):
 
 def stellar_albedo(size):
     """Random sample of stellar albedos."""
-    #TODO include reference for albedo values
+    # TODO include reference for albedo values
     return np.random.rand(size) * 0.4 + 0.6
 
 
-def binary_mass_ratio(size):
+def binary_mass_ratio(mass, period, size):
     """Draw mass ratio q."""
     # TODO: use joint (q, primary mass) distribution instead of marginal
 
     q = np.empty(size)
     # TODO: awful; try to vectorize function in moduleprior
     for i in range(len(q)):
-        q[i] = mp.q_def()
-        
+        q[i] = mp.q_def(mass[i], period[i])
+
     return q
